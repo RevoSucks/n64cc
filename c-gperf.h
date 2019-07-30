@@ -163,7 +163,7 @@ static struct resword wordlist[] =
 #ifdef __GNUC__
 __inline
 #endif
-struct resword *
+static struct resword *
 is_reserved_word (str, len)
      register char *str;
      register unsigned int len;
