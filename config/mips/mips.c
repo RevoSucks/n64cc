@@ -3504,6 +3504,25 @@ override_options ()
     }
 }
 
+/* Return nonzero if ATTR is a valid attribute for DECL.
+   ATTRIBUTES are any existing attributes and ARGS are the arguments
+   supplied with ATTR.
+   Supported attributes:
+   naked: don't output any prologue or epilogue code, the user is assumed
+   to do the right thing.
+ */
+int
+mips_valid_machine_decl_attribute(tree decl, tree attributes, tree attr, tree args)
+{
+    if (args != NULL_TREE)
+        return 0;
+
+    if (is_attribute_p("naked", attr))
+        return TREE_CODE(decl) == FUNCTION_DECL;
+
+    return 0;
+}
+
 
 /*
  * The MIPS debug format wants all automatic variables and arguments
@@ -4860,6 +4879,18 @@ save_restore_insns (store_p, large_reg, large_offset, file)
     }
 }
 
+static int
+mips_naked_function_p(tree func)
+{
+    tree a;
+
+    if (TREE_CODE(func) != FUNCTION_DECL)
+        abort();
+
+    a = lookup_attribute("naked", DECL_MACHINE_ATTRIBUTES(func));
+    return a != NULL_TREE;
+}
+
 
 /* Set up the stack and frame (if desired) for the function.  */
 
@@ -4870,6 +4901,11 @@ function_prologue (file, size)
 {
   char *fnname;
   long tsize = current_frame_info.total_size;
+
+    if (mips_naked_function_p(current_function_decl)) {
+        printf("I work 1\n");
+        return;
+    }
 
   ASM_OUTPUT_SOURCE_FILENAME (file, DECL_SOURCE_FILE (current_function_decl));
 
@@ -4943,6 +4979,11 @@ mips_expand_prologue ()
   tree next_arg;
   tree cur_arg;
   CUMULATIVE_ARGS args_so_far;
+
+   if (mips_naked_function_p(current_function_decl)) {
+       printf("I work 2\n");
+       return;
+   }
 
   /* If struct value address is treated as the first argument, make it so.  */
   if (aggregate_value_p (DECL_RESULT (fndecl))
@@ -5124,6 +5165,11 @@ function_epilogue (file, size)
   rtx tmp_rtx = (rtx)0;
   rtx restore_rtx;
   int i;
+
+   if (mips_naked_function_p(current_function_decl)) {
+       printf("I work 3\n");
+       return;
+   }
 
   /* The epilogue does not depend on any registers, but the stack
      registers, so we assume that if we have 1 pending nop, it can be
@@ -5373,6 +5419,11 @@ function_epilogue (file, size)
 void
 mips_expand_epilogue ()
 {
+    if (mips_naked_function_p(current_function_decl)) {
+        printf("I work 4\n");
+        return;
+    }
+
   long tsize = current_frame_info.total_size;
   rtx tsize_rtx = GEN_INT (tsize);
   rtx tmp_rtx = (rtx)0;
@@ -5416,6 +5467,10 @@ mips_expand_epilogue ()
 int
 mips_epilogue_delay_slots ()
 {
+    if (mips_naked_function_p(current_function_decl)) {
+        printf("I work 5\n");
+        return 0;
+    }
   if (!current_frame_info.initialized)
     (void) compute_frame_size (get_frame_size ());
 
@@ -5436,6 +5491,10 @@ mips_epilogue_delay_slots ()
 int
 simple_epilogue_p ()
 {
+  if (mips_naked_function_p(current_function_decl)) {
+      printf("I work 6\n");
+     return TRUE;
+  }
   if (!reload_completed)
     return 0;
 
