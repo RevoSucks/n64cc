@@ -1,0 +1,22 @@
+*.o
+
+# not sure about these files (related to bison)
+bi-parser.c
+bi-parser.h
+c-gperf.h
+# end of bison files
+
+config.h
+config.status
+hconfig.h
+options.h
+specs.h
+tconfig.h
+tm.h
+
+Makefile
+cp/stage1
+cp/stage2
+cp/stage3
+cp/stage4
+cp/include

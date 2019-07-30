@@ -54,15 +54,15 @@ AT&T C compiler.  From the example below I would conclude the following:
 
 /* Mips systems use the SDB functions to dump out symbols, but
    do not supply usable syms.h include files.  */
-#if defined(USG) && !defined(MIPS) && !defined (hpux) && !defined(_WIN32) && !defined(__linux__)
-#include <syms.h>
+//#if defined(USG) && !defined(MIPS) && !defined (hpux) && !defined(_WIN32) && !defined(__linux__)
+//#include <syms.h>
 /* Use T_INT if we don't have T_VOID.  */
-#ifndef T_VOID
-#define T_VOID T_INT
-#endif
-#else /* not USG, or MIPS */
+//#ifndef T_VOID
+//#define T_VOID T_INT
+//#endif
+//#else /* not USG, or MIPS */
 #include "gsyms.h"
-#endif /* not USG, or MIPS */
+//#endif /* not USG, or MIPS */
 
 /* #include <storclass.h>  used to be this instead of syms.h.  */
 
