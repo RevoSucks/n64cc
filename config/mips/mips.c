@@ -3517,8 +3517,10 @@ mips_valid_machine_decl_attribute(tree decl, tree attributes, tree attr, tree ar
     if (args != NULL_TREE)
         return 0;
 
-    if (is_attribute_p("naked", attr))
+    if (is_attribute_p("naked", attr)) {
+        printf("mips_valid_machine_decl_attribute\n");
         return TREE_CODE(decl) == FUNCTION_DECL;
+    }
 
     return 0;
 }

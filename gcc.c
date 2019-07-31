@@ -180,7 +180,7 @@ extern int sys_nerr;
 #if defined(bsd4_4)
 extern const char *const sys_errlist[];
 #else
-extern char *sys_errlist[];
+extern const char *const sys_errlist[];
 #endif
 #else
 extern char *strerror();

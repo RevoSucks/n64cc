@@ -695,8 +695,10 @@ gcc-cross: xgcc
 cc1: $(P) $(C_OBJS) $(OBJS) $(BC_OBJS) $(LIBDEPS)
 	$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o $@ $(C_OBJS) $(OBJS) $(BC_OBJS) $(LIBS)
 
-cc1obj: $(P) $(OBJC_OBJS) $(OBJS) $(BC_OBJS) $(LIBDEPS)
-	$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o $@ $(OBJC_OBJS) $(OBJS) $(BC_OBJS) $(LIBS)
+# $(P) $(OBJC_OBJS) $(OBJS) $(BC_OBJS) $(LIBDEPS)
+cc1obj:
+	$(error Short-circuit build at cc1obj, fix later)
+	# $(CC) $(ALL_CFLAGS) $(LDFLAGS) -o $@ $(OBJC_OBJS) $(OBJS) $(BC_OBJS) $(LIBS)
 
 # Copy float.h from its source.
 gfloat.h: $(FLOAT_H)
