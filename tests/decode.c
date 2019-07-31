@@ -50,7 +50,7 @@ void DecodeLZ(struct decode_struct *decode)
 	bzero(&D_800D1720, 1024);
 	while(decode->len)
 	{
-		if(!((flag = (((flag & 0xFFFF) >> 1)) & 0x100))
+		if(!((flag = (((flag & 0xFFFF) >> 1)) & 0x100)))
 		{
 			if(decode->chunk_len >= 1024)
 			{

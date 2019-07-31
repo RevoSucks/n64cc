@@ -1321,7 +1321,7 @@ duplicate_decls (newdecl, olddecl)
   char *errmsg = 0;
 
   if (TREE_CODE_CLASS (TREE_CODE (olddecl)) == 'd')
-    DECL_MACHINE_ATTRIBUTES (newdecl) = DECL_MACHINE_ATTRIBUTES (olddecl);
+    DECL_MACHINE_ATTRIBUTES (newdecl) = merge_attributes(DECL_MACHINE_ATTRIBUTES (olddecl), DECL_MACHINE_ATTRIBUTES (newdecl));
 
   if (TREE_CODE (newtype) == ERROR_MARK
       || TREE_CODE (oldtype) == ERROR_MARK)
@@ -3556,6 +3556,7 @@ start_decl (declarator, declspecs, initialized, attributes, prefix_attributes)
   DECL_COMMON (decl) = 1;
 
   /* Set attributes here so if duplicate decl, will have proper attributes.  */
+  printf("Calling decl_attributes from start_decl\n");
   decl_attributes (decl, attributes, prefix_attributes);
 
   /* Add this decl to the current binding level.
@@ -3896,6 +3897,7 @@ push_parm_decl (parm)
 
   decl = grokdeclarator (TREE_VALUE (TREE_PURPOSE (parm)),
 			 TREE_PURPOSE (TREE_PURPOSE (parm)), PARM, 0);
+  printf("Calling decl_attributes from push_parm_decl\n");
   decl_attributes (decl, TREE_VALUE (TREE_VALUE (parm)),
 		   TREE_PURPOSE (TREE_VALUE (parm)));
 
@@ -6025,6 +6027,7 @@ start_function (declspecs, declarator, prefix_attributes, attributes, nested)
   if (decl1 == 0)
     return 0;
 
+  printf("Calling decl_attributes from start_function\n");
   decl_attributes (decl1, prefix_attributes, attributes);
 
   announce_function (decl1);

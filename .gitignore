@@ -1,6 +1,7 @@
 *.o
 *.exe
 *.s
+*.dump
 
 # not sure about these files (related to bison)
 bi-parser.c
