@@ -3060,9 +3060,6 @@ is_attribute_p (attr, ident)
   if (TREE_CODE (ident) != IDENTIFIER_NODE)
     return 0;
 
-  if (strcmp (attr, "naked") == 0) {
-    printf("IDENTIFIER_POINTER: %s\n", IDENTIFIER_POINTER (ident));
-  }
   if (strcmp (attr, IDENTIFIER_POINTER (ident)) == 0)
     return 1;
 
@@ -3103,25 +3100,13 @@ lookup_attribute (attr_name, list)
      tree list;
 {
   tree l;
-  int i = 0;
 
-  if (strcmp(attr_name, "naked") == 0) {
-    printf("lookup_attribute naked before loop\n");
-    if (list == NULL) {
-      printf("list is null!\n");
-    }
-  }
-      
   for (l = list; l; l = TREE_CHAIN (l))
     {
-      if (strcmp(attr_name, "naked") == 0) {
-        printf("lookup_attribute naked: %d\n", i);
-      }
       if (TREE_CODE (TREE_PURPOSE (l)) != IDENTIFIER_NODE)
         abort ();
       if (is_attribute_p (attr_name, TREE_PURPOSE (l)))
 	    return l;
-    i++;
     }
 
   return NULL_TREE;

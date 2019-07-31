@@ -3518,7 +3518,6 @@ mips_valid_machine_decl_attribute(tree decl, tree attributes, tree attr, tree ar
         return 0;
 
     if (is_attribute_p("naked", attr)) {
-        printf("mips_valid_machine_decl_attribute\n");
         return TREE_CODE(decl) == FUNCTION_DECL;
     }
 
@@ -4978,7 +4977,6 @@ mips_expand_prologue ()
   CUMULATIVE_ARGS args_so_far;
 
    if (mips_naked_function_p(current_function_decl)) {
-       printf("I work 2\n");
        return;
    }
 
@@ -5384,7 +5382,6 @@ function_epilogue (file, size)
         fputc ('\n', stderr);
       }
    } else {
-      printf("I work 3\n");
       fnname = XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0);
     
       fputs ("\t.end\t", file);
@@ -5465,7 +5462,6 @@ int
 mips_epilogue_delay_slots ()
 {
     if (mips_naked_function_p(current_function_decl)) {
-        printf("I work 5\n");
         return 0;
     }
   if (!current_frame_info.initialized)
@@ -5489,7 +5485,6 @@ int
 simple_epilogue_p ()
 {
   if (mips_naked_function_p(current_function_decl)) {
-      printf("I work 6\n");
      return FALSE;
   }
   if (!reload_completed)
