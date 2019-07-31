@@ -4903,12 +4903,7 @@ function_prologue (file, size)
 {
   char *fnname;
   long tsize = current_frame_info.total_size;
-
-    if (mips_naked_function_p(current_function_decl)) {
-        printf("I work 1\n");
-        return;
-    }
-
+    
   ASM_OUTPUT_SOURCE_FILENAME (file, DECL_SOURCE_FILE (current_function_decl));
 
 #ifdef SDB_DEBUGGING_INFO
@@ -5168,230 +5163,234 @@ function_epilogue (file, size)
   rtx restore_rtx;
   int i;
 
-   if (mips_naked_function_p(current_function_decl)) {
-       printf("I work 3\n");
-       return;
+   if (!mips_naked_function_p(current_function_decl)) {
+    /* The epilogue does not depend on any registers, but the stack
+       registers, so we assume that if we have 1 pending nop, it can be
+       ignored, and 2 it must be filled (2 nops occur for integer
+       multiply and divide).  */
+    
+    if (dslots_number_nops > 0)
+      {
+        if (dslots_number_nops == 1)
+	  {
+	    dslots_number_nops = 0;
+	    dslots_load_filled++;
+	  }
+        else
+	  {
+	    while (--dslots_number_nops > 0)
+	      fputs ("\t#nop\n", asm_out_file);
+	  }
+      }
+    
+    if (set_noat != 0)
+      {
+        set_noat = 0;
+        fputs ("\t.set\tat\n", file);
+        error ("internal gcc error: .set noat left on in epilogue");
+      }
+    
+    if (set_nomacro != 0)
+      {
+        set_nomacro = 0;
+        fputs ("\t.set\tmacro\n", file);
+        error ("internal gcc error: .set nomacro left on in epilogue");
+      }
+    
+    if (set_noreorder != 0)
+      {
+        set_noreorder = 0;
+        fputs ("\t.set\treorder\n", file);
+        error ("internal gcc error: .set noreorder left on in epilogue");
+      }
+    
+    if (set_volatile != 0)
+      {
+        set_volatile = 0;
+        fprintf (file, "\t%s.set\tnovolatile\n", (TARGET_MIPS_AS) ? "" : "#");
+        error ("internal gcc error: .set volatile left on in epilogue");
+      }
+    
+    size = MIPS_STACK_ALIGN (size);
+    tsize = (!current_frame_info.initialized)
+	  	? compute_frame_size (size)
+	  	: current_frame_info.total_size;
+    
+    if (tsize == 0 && epilogue_delay == 0)
+      {
+        rtx insn = get_last_insn ();
+    
+        /* If the last insn was a BARRIER, we don't have to write any code
+	   because a jump (aka return) was put there.  */
+        if (GET_CODE (insn) == NOTE)
+	  insn = prev_nonnote_insn (insn);
+        if (insn && GET_CODE (insn) == BARRIER)
+	  noepilogue = TRUE;
+    
+        noreorder = FALSE;
+      }
+    
+    if (!noepilogue)
+      {
+        /* In the reload sequence, we don't need to fill the load delay
+	   slots for most of the loads, also see if we can fill the final
+	   delay slot if not otherwise filled by the reload sequence.  */
+    
+        if (noreorder)
+	  fprintf (file, "\t.set\tnoreorder\n");
+    
+        if (tsize > 32767)
+	  {
+	    fprintf (file, "\tli\t%s,0x%.08lx\t# %ld\n", t1_str, (long)tsize, (long)tsize);
+	    tmp_rtx = gen_rtx (REG, Pmode, MIPS_TEMP1_REGNUM);
+	  }
+    
+        if (frame_pointer_needed)
+	  fprintf (file, "\tmove\t%s,%s\t\t\t# sp not trusted here\n",
+	  	 sp_str, reg_names[FRAME_POINTER_REGNUM]);
+    
+        save_restore_insns (FALSE, tmp_rtx, tsize, file);
+    
+        load_only_r31 = (((current_frame_info.mask
+	  		 & ~ (TARGET_ABICALLS && ! (ABI_64BIT && mips_isa >= 3)
+	  		      ? PIC_OFFSET_TABLE_MASK : 0))
+	  		== RA_MASK)
+	  	       && current_frame_info.fmask == 0);
+    
+        if (noreorder)
+	  {
+	    /* If the only register saved is the return address, we need a
+	       nop, unless we have an instruction to put into it.  Otherwise
+	       we don't since reloading multiple registers doesn't reference
+	       the register being loaded.  */
+    
+	    if (load_only_r31)
+	      {
+	        if (epilogue_delay)
+	  	  final_scan_insn (XEXP (epilogue_delay, 0),
+	  			   file,
+	  			   1,	 		/* optimize */
+	  			   -2,	 		/* prescan */
+	  			   1);			/* nopeepholes */
+	        else
+	  	{
+	  	  fprintf (file, "\tnop\n");
+	  	  load_nop = TRUE;
+	  	}
+	      }
+    
+	    fprintf (file, "\tj\t%s\n", reg_names[GP_REG_FIRST + 31]);
+    
+	    if (tsize > 32767)
+	      fprintf (file, "\t%s\t%s,%s,%s\n",
+	  	     TARGET_LONG64 ? "daddu" : "addu",
+	  	     sp_str, sp_str, t1_str);
+    
+	    else if (tsize > 0)
+	      fprintf (file, "\t%s\t%s,%s,%d\n",
+	  	     TARGET_LONG64 ? "daddu" : "addu",
+	  	     sp_str, sp_str, tsize);
+    
+	    else if (!load_only_r31 && epilogue_delay != 0)
+	      final_scan_insn (XEXP (epilogue_delay, 0),
+	  		     file,
+	  		     1, 		/* optimize */
+	  		     -2, 		/* prescan */
+	  		     1);		/* nopeepholes */
+    
+	    fprintf (file, "\t.set\treorder\n");
+	  }
+    
+        else
+	  {
+	    if (tsize > 32767)
+	      fprintf (file, "\t%s\t%s,%s,%s\n",
+	  	     TARGET_LONG64 ? "daddu" : "addu",
+	  	     sp_str, sp_str, t1_str);
+    
+	    else if (tsize > 0)
+	      fprintf (file, "\t%s\t%s,%s,%d\n",
+	  	     TARGET_LONG64 ? "daddu" : "addu",
+	  	     sp_str, sp_str, tsize);
+    
+	    fprintf (file, "\tj\t%s\n", reg_names[GP_REG_FIRST + 31]);
+	  }
+      }
+    
+    /* Get the function name the same way that toplev.c does before calling
+       assemble_start_function.  This is needed so that the name used here
+       exactly matches the name used in ASM_DECLARE_FUNCTION_NAME.  */
+    fnname = XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0);
+    
+    fputs ("\t.end\t", file);
+    assemble_name (file, fnname);
+    fputs ("\n", file);
+    
+    if (TARGET_STATS)
+      {
+        int num_gp_regs = current_frame_info.gp_reg_size / 4;
+        int num_fp_regs = current_frame_info.fp_reg_size / 8;
+        int num_regs    = num_gp_regs + num_fp_regs;
+        char *name      = fnname;
+    
+        if (name[0] == '*')
+	  name++;
+    
+        dslots_load_total += num_regs;
+    
+        if (!noepilogue)
+	  dslots_jump_total++;
+    
+        if (noreorder)
+	  {
+	    dslots_load_filled += num_regs;
+    
+	    /* If the only register saved is the return register, we
+	       can't fill this register's delay slot.  */
+    
+	    if (load_only_r31 && epilogue_delay == 0)
+	      dslots_load_filled--;
+    
+	    if (tsize > 0 || (!load_only_r31 && epilogue_delay != 0))
+	      dslots_jump_filled++;
+	  }
+    
+        fprintf (stderr,
+	         "%-20s fp=%c leaf=%c alloca=%c setjmp=%c stack=%4ld arg=%3ld reg=%2d/%d delay=%3d/%3dL %3d/%3dJ refs=%3d/%3d/%3d",
+	         name,
+	         (frame_pointer_needed) ? 'y' : 'n',
+	         ((current_frame_info.mask & RA_MASK) != 0) ? 'n' : 'y',
+	         (current_function_calls_alloca) ? 'y' : 'n',
+	         (current_function_calls_setjmp) ? 'y' : 'n',
+	         (long)current_frame_info.total_size,
+	         (long)current_function_outgoing_args_size,
+	         num_gp_regs, num_fp_regs,
+	         dslots_load_total, dslots_load_filled,
+	         dslots_jump_total, dslots_jump_filled,
+	         num_refs[0], num_refs[1], num_refs[2]);
+    
+        if (HALF_PIC_NUMBER_PTRS > prev_half_pic_ptrs)
+	  {
+	    fprintf (stderr, " half-pic=%3d", HALF_PIC_NUMBER_PTRS - prev_half_pic_ptrs);
+	    prev_half_pic_ptrs = HALF_PIC_NUMBER_PTRS;
+	  }
+    
+        if (HALF_PIC_NUMBER_REFS > prev_half_pic_refs)
+	  {
+	    fprintf (stderr, " pic-ref=%3d", HALF_PIC_NUMBER_REFS - prev_half_pic_refs);
+	    prev_half_pic_refs = HALF_PIC_NUMBER_REFS;
+	  }
+    
+        fputc ('\n', stderr);
+      }
+   } else {
+      printf("I work 3\n");
+      fnname = XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0);
+    
+      fputs ("\t.end\t", file);
+      assemble_name (file, fnname);
+      fputs ("\n", file);
    }
-
-  /* The epilogue does not depend on any registers, but the stack
-     registers, so we assume that if we have 1 pending nop, it can be
-     ignored, and 2 it must be filled (2 nops occur for integer
-     multiply and divide).  */
-
-  if (dslots_number_nops > 0)
-    {
-      if (dslots_number_nops == 1)
-	{
-	  dslots_number_nops = 0;
-	  dslots_load_filled++;
-	}
-      else
-	{
-	  while (--dslots_number_nops > 0)
-	    fputs ("\t#nop\n", asm_out_file);
-	}
-    }
-
-  if (set_noat != 0)
-    {
-      set_noat = 0;
-      fputs ("\t.set\tat\n", file);
-      error ("internal gcc error: .set noat left on in epilogue");
-    }
-
-  if (set_nomacro != 0)
-    {
-      set_nomacro = 0;
-      fputs ("\t.set\tmacro\n", file);
-      error ("internal gcc error: .set nomacro left on in epilogue");
-    }
-
-  if (set_noreorder != 0)
-    {
-      set_noreorder = 0;
-      fputs ("\t.set\treorder\n", file);
-      error ("internal gcc error: .set noreorder left on in epilogue");
-    }
-
-  if (set_volatile != 0)
-    {
-      set_volatile = 0;
-      fprintf (file, "\t%s.set\tnovolatile\n", (TARGET_MIPS_AS) ? "" : "#");
-      error ("internal gcc error: .set volatile left on in epilogue");
-    }
-
-  size = MIPS_STACK_ALIGN (size);
-  tsize = (!current_frame_info.initialized)
-		? compute_frame_size (size)
-		: current_frame_info.total_size;
-
-  if (tsize == 0 && epilogue_delay == 0)
-    {
-      rtx insn = get_last_insn ();
-
-      /* If the last insn was a BARRIER, we don't have to write any code
-	 because a jump (aka return) was put there.  */
-      if (GET_CODE (insn) == NOTE)
-	insn = prev_nonnote_insn (insn);
-      if (insn && GET_CODE (insn) == BARRIER)
-	noepilogue = TRUE;
-
-      noreorder = FALSE;
-    }
-
-  if (!noepilogue)
-    {
-      /* In the reload sequence, we don't need to fill the load delay
-	 slots for most of the loads, also see if we can fill the final
-	 delay slot if not otherwise filled by the reload sequence.  */
-
-      if (noreorder)
-	fprintf (file, "\t.set\tnoreorder\n");
-
-      if (tsize > 32767)
-	{
-	  fprintf (file, "\tli\t%s,0x%.08lx\t# %ld\n", t1_str, (long)tsize, (long)tsize);
-	  tmp_rtx = gen_rtx (REG, Pmode, MIPS_TEMP1_REGNUM);
-	}
-
-      if (frame_pointer_needed)
-	fprintf (file, "\tmove\t%s,%s\t\t\t# sp not trusted here\n",
-		 sp_str, reg_names[FRAME_POINTER_REGNUM]);
-
-      save_restore_insns (FALSE, tmp_rtx, tsize, file);
-
-      load_only_r31 = (((current_frame_info.mask
-			 & ~ (TARGET_ABICALLS && ! (ABI_64BIT && mips_isa >= 3)
-			      ? PIC_OFFSET_TABLE_MASK : 0))
-			== RA_MASK)
-		       && current_frame_info.fmask == 0);
-
-      if (noreorder)
-	{
-	  /* If the only register saved is the return address, we need a
-	     nop, unless we have an instruction to put into it.  Otherwise
-	     we don't since reloading multiple registers doesn't reference
-	     the register being loaded.  */
-
-	  if (load_only_r31)
-	    {
-	      if (epilogue_delay)
-		  final_scan_insn (XEXP (epilogue_delay, 0),
-				   file,
-				   1,	 		/* optimize */
-				   -2,	 		/* prescan */
-				   1);			/* nopeepholes */
-	      else
-		{
-		  fprintf (file, "\tnop\n");
-		  load_nop = TRUE;
-		}
-	    }
-
-	  fprintf (file, "\tj\t%s\n", reg_names[GP_REG_FIRST + 31]);
-
-	  if (tsize > 32767)
-	    fprintf (file, "\t%s\t%s,%s,%s\n",
-		     TARGET_LONG64 ? "daddu" : "addu",
-		     sp_str, sp_str, t1_str);
-
-	  else if (tsize > 0)
-	    fprintf (file, "\t%s\t%s,%s,%d\n",
-		     TARGET_LONG64 ? "daddu" : "addu",
-		     sp_str, sp_str, tsize);
-
-	  else if (!load_only_r31 && epilogue_delay != 0)
-	    final_scan_insn (XEXP (epilogue_delay, 0),
-			     file,
-			     1, 		/* optimize */
-			     -2, 		/* prescan */
-			     1);		/* nopeepholes */
-
-	  fprintf (file, "\t.set\treorder\n");
-	}
-
-      else
-	{
-	  if (tsize > 32767)
-	    fprintf (file, "\t%s\t%s,%s,%s\n",
-		     TARGET_LONG64 ? "daddu" : "addu",
-		     sp_str, sp_str, t1_str);
-
-	  else if (tsize > 0)
-	    fprintf (file, "\t%s\t%s,%s,%d\n",
-		     TARGET_LONG64 ? "daddu" : "addu",
-		     sp_str, sp_str, tsize);
-
-	  fprintf (file, "\tj\t%s\n", reg_names[GP_REG_FIRST + 31]);
-	}
-    }
-
-  /* Get the function name the same way that toplev.c does before calling
-     assemble_start_function.  This is needed so that the name used here
-     exactly matches the name used in ASM_DECLARE_FUNCTION_NAME.  */
-  fnname = XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0);
-
-  fputs ("\t.end\t", file);
-  assemble_name (file, fnname);
-  fputs ("\n", file);
-
-  if (TARGET_STATS)
-    {
-      int num_gp_regs = current_frame_info.gp_reg_size / 4;
-      int num_fp_regs = current_frame_info.fp_reg_size / 8;
-      int num_regs    = num_gp_regs + num_fp_regs;
-      char *name      = fnname;
-
-      if (name[0] == '*')
-	name++;
-
-      dslots_load_total += num_regs;
-
-      if (!noepilogue)
-	dslots_jump_total++;
-
-      if (noreorder)
-	{
-	  dslots_load_filled += num_regs;
-
-	  /* If the only register saved is the return register, we
-	     can't fill this register's delay slot.  */
-
-	  if (load_only_r31 && epilogue_delay == 0)
-	    dslots_load_filled--;
-
-	  if (tsize > 0 || (!load_only_r31 && epilogue_delay != 0))
-	    dslots_jump_filled++;
-	}
-
-      fprintf (stderr,
-	       "%-20s fp=%c leaf=%c alloca=%c setjmp=%c stack=%4ld arg=%3ld reg=%2d/%d delay=%3d/%3dL %3d/%3dJ refs=%3d/%3d/%3d",
-	       name,
-	       (frame_pointer_needed) ? 'y' : 'n',
-	       ((current_frame_info.mask & RA_MASK) != 0) ? 'n' : 'y',
-	       (current_function_calls_alloca) ? 'y' : 'n',
-	       (current_function_calls_setjmp) ? 'y' : 'n',
-	       (long)current_frame_info.total_size,
-	       (long)current_function_outgoing_args_size,
-	       num_gp_regs, num_fp_regs,
-	       dslots_load_total, dslots_load_filled,
-	       dslots_jump_total, dslots_jump_filled,
-	       num_refs[0], num_refs[1], num_refs[2]);
-
-      if (HALF_PIC_NUMBER_PTRS > prev_half_pic_ptrs)
-	{
-	  fprintf (stderr, " half-pic=%3d", HALF_PIC_NUMBER_PTRS - prev_half_pic_ptrs);
-	  prev_half_pic_ptrs = HALF_PIC_NUMBER_PTRS;
-	}
-
-      if (HALF_PIC_NUMBER_REFS > prev_half_pic_refs)
-	{
-	  fprintf (stderr, " pic-ref=%3d", HALF_PIC_NUMBER_REFS - prev_half_pic_refs);
-	  prev_half_pic_refs = HALF_PIC_NUMBER_REFS;
-	}
-
-      fputc ('\n', stderr);
-    }
 
   /* Reset state info for each function.  */
   inside_function    = FALSE;
@@ -5421,10 +5420,6 @@ function_epilogue (file, size)
 void
 mips_expand_epilogue ()
 {
-    if (mips_naked_function_p(current_function_decl)) {
-        printf("I work 4\n");
-        return;
-    }
 
   long tsize = current_frame_info.total_size;
   rtx tsize_rtx = GEN_INT (tsize);
@@ -5495,7 +5490,7 @@ simple_epilogue_p ()
 {
   if (mips_naked_function_p(current_function_decl)) {
       printf("I work 6\n");
-     return TRUE;
+     return FALSE;
   }
   if (!reload_completed)
     return 0;
