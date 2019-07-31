@@ -286,7 +286,6 @@ asm(".set noat\n\
     lw    $s0, 0x18($sp)\n\
     jr    $ra\n\
     addiu $sp, $sp, 0x30");
-    // an extra $jr ra is added mistakenly here
 }
 #endif
 
