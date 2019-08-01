@@ -1240,6 +1240,10 @@ int is_attribute_p			PROTO((char *, tree));
 
 tree lookup_attribute			PROTO((char *, tree));
 
+/* Given two attributes lists, return a list of their union.  */
+
+tree merge_attributes		(tree, tree);
+
 /* Given a type node TYPE, and CONSTP and VOLATILEP, return a type
    for the same kind of data as TYPE describes.
    Variants point to the "main variant" (which has neither CONST nor VOLATILE)
